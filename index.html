@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WavePlay — Modern Audio Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background: radial-gradient(circle at 10% 20%, #0a0c12, #030507);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e2a;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b3f5c;
+            border-radius: 10px;
+        }
+        
+        .progress-bar-bg {
+            background: #2d2f3e;
+            height: 5px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .progress-fill {
+            background: #3b82f6;
+            width: 0%;
+            height: 100%;
+            border-radius: 20px;
+            position: relative;
+            transition: width 0.05s linear;
+            box-shadow: 0 0 6px rgba(59,130,246,0.5);
+        }
+        
+        .glass-video {
+            background: #05070c;
+            box-shadow: 0 25px 40px -12px rgba(0,0,0,0.8);
+        }
+        
+        .track-item {
+            transition: all 0.2s ease;
+        }
+        
+        .modal-pop {
+            animation: modalFloat 0.22s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
+        }
+        
+        @keyframes modalFloat {
+            from {
+                opacity: 0;
+                transform: scale(0.96) translateY(18px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .btn-icon {
+            transition: all 0.2s;
+        }
+        .btn-icon:hover {
+            transform: translateY(-1px);
+        }
+        .btn-icon:active {
+            transform: translateY(1px);
+        }
+        
+        .wave-bg-neutral {
+            background: radial-gradient(ellipse at 50% 30%, #0f111a, #020308);
+        }
+    </style>
+</head>
+<body class="text-gray-200 antialiased flex flex-col h-screen select-none">
+    <div class="max-w-7xl mx-auto w-full flex flex-col h-full px-3 md:px-5">
+        
+        <header class="flex items-center justify-between py-2.5 border-b border-white/10 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-tr from-blue-500 to-indigo-600 w-2 h-2 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-waveform text-white text-base"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">WavePlay</span>
+            </div>
+            
+            <div id="header-now-playing" class="text-right max-w-[240px] md:max-w-sm truncate">
+                <span id="header-playlist-name" class="text-xs font-medium text-blue-300/80"></span>
+                <span id="header-track-name" class="text-sm font-medium text-gray-200 ml-1"></span>
+            </div>
+        </header>
+        
+        <div class="flex-1 flex items-center justify-center py-4 md:py-6 wave-bg-neutral relative" id="player-container">
+            <div class="w-full max-w-3xl">
+                <div class="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl glass-video aspect-video mx-auto bg-black/50 backdrop-blur-sm">
+                    <video id="main-player" class="w-full h-full object-contain" preload="metadata"></video>
+                    
+                    <div id="overlay-info" class="absolute bottom-6 left-6 right-6 text-white hidden flex-col gap-1 drop-shadow-lg">
+                        <div id="overlay-title" class="text-xl md:text-3xl font-bold"></div>
+                        <div id="overlay-artist" class="text-gray-300 text-sm md:text-base"></div>
+                    </div>
+                    
+                    <div id="loading-indicator" class="absolute inset-0 flex items-center justify-center bg-black/60 hidden">
+                        <div class="flex flex-col items-center">
+                            <div class="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p class="text-xs mt-3 text-gray-300">loading stream ...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="no-media-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center hidden pointer-events-none">
+                    <i class="fa-solid fa-head-side-headphones text-7xl text-gray-700 mb-5"></i>
+                    <p class="text-xl font-medium text-gray-500">WavePlay</p>
+                    <p class="text-gray-600 text-sm">pick a track or playlist</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="shrink-0 bg-black/40 backdrop-blur-sm border-t border-white/10 px-2 md:px-5 py-3 mt-1 rounded-t-2xl">
+            
+            <div class="flex flex-row md:items-center gap-2 md:gap-4 mb-4 max-w-5xl mx-auto">
+                <div class="flex items-center gap-3 flex-1">
+                    <span id="current-time" class="text-xs text-gray-400 w-10">0:00</span>
+                    <div onclick="seek(event)" id="progress-container" class="progress-bar-bg flex-1 relative">
+                        <div id="progress-bar" class="progress-fill"></div>
+                    </div>
+                    <span id="duration" class="text-xs text-gray-400 w-10 text-right">0:00</span>
+                </div>
+                
+                <div class="flex items-center gap-3 justify-end md:justify-normal">
+                    <i id="volume-icon" onclick="toggleMute()" class="fa-solid fa-volume-high text-gray-400 hover:text-white cursor-pointer text-sm"></i>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)" class="w-16 md:w-32 accent-blue-500 h-1.5 rounded-full">
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center justify-center md:justify-between gap-y-3 max-w-5xl mx-auto">
+                <div class="flex items-center gap-1.5 md:gap-2 px-2">
+                    <button onclick="showLibraryModal()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center" title="Library">
+                        <i class="fa-solid fa-music text-base md:text-lg"></i>
+                    </button>
+                    <button onclick="showPlaylistsModal()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center" title="Playlists">
+                        <i class="fa-solid fa-list-ul text-base md:text-lg"></i>
+                    </button>
+                    <button onclick="addCurrentToPlaylist()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center" title="Add current to playlist">
+                        <i class="fa-solid fa-plus text-base md:text-lg"></i>
+                    </button>
+                    <button onclick="removeCurrentFromPlaylist()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-300 hover:text-red-400 flex items-center justify-center" title="Remove from playlist">
+                        <i class="fa-solid fa-trash-can text-base md:text-lg"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-1.5 md:gap-2 px-2">
+                    <button onclick="skipBackward()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 flex items-center justify-center" title="10 seconds backward">
+                        <i class="fa-solid fa-rotate-left text-md"></i><span class="text-[11px] font-bold ml-0.5">10</span>
+                    </button>
+                    <button onclick="playPrevious()" class="btn-icon w-9 h-9 md:w-11 md:h-11 rounded-2xl hover:bg-white/10 flex items-center justify-center" title="Previous track">
+                        <i class="fa-solid fa-backward-step text-xl"></i>
+                    </button>
+                    <button onclick="togglePlay()" id="play-pause-btn" class="w-12 h-12 md:w-14 md:h-14 bg-blue-600 hover:bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 transition-all active:scale-95" title="Play/Pause">
+                        <i id="play-icon" class="fa-solid fa-play text-2xl ml-0.5"></i>
+                    </button>
+                    <button onclick="playNext()" class="btn-icon w-9 h-9 md:w-11 md:h-11 rounded-2xl hover:bg-white/10 flex items-center justify-center" title="Next track">
+                        <i class="fa-solid fa-forward-step text-xl"></i>
+                    </button>
+                    <button onclick="skipForward()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 flex items-center justify-center" title="10 seconds forward">
+                        <i class="fa-solid fa-rotate-right text-md"></i><span class="text-[11px] font-bold ml-0.5">10</span>
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-1.5 md:gap-2 px-2">
+                    <button onclick="stopPlayback()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 text-gray-300 flex items-center justify-center" title="Stop">
+                        <i class="fa-solid fa-stop text-lg"></i>
+                    </button>
+                    <button onclick="toggleShuffle()" id="shuffle-btn" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 flex items-center justify-center" title="Shuffle">
+                        <i class="fa-solid fa-shuffle text-lg"></i>
+                    </button>
+                    <button onclick="toggleRepeat()" id="repeat-btn" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 flex items-center justify-center" title="Repeat mode">
+                        <i id="repeat-icon" class="fa-solid fa-repeat text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="library-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+            <div class="px-5 py-4 border-b border-white/10 flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Your Library</h3>
+                <button onclick="hideLibraryModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-4 border-b border-white/10">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-4 top-3 text-gray-500 text-sm"></i>
+                    <input id="library-search" onkeyup="filterLibrary()" type="text" placeholder="Search tracks..." class="w-full bg-zinc-800 border border-zinc-700 rounded-xl py-2.5 pl-10 text-sm outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div id="library-list" class="max-h-[380px] overflow-y-auto text-sm"></div>
+            <div class="p-4 flex gap-3 border-t border-white/10">
+                <button onclick="hideLibraryModal()" class="flex-1 py-2.5 border border-zinc-700 rounded-xl hover:bg-zinc-800">Cancel</button>
+                <button onclick="showNewTrackModal()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium">Add New Track</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="playlists-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-lg rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/10 flex justify-between">
+                <span class="font-semibold text-lg">Playlists</span>
+                <button onclick="hidePlaylistsModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-4">
+                <button onclick="showCreatePlaylistModal()" class="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-dashed border-gray-600 rounded-xl flex items-center justify-center gap-2 text-sm mb-4">
+                    <i class="fa-solid fa-plus"></i> New Playlist
+                </button>
+                <div id="playlists-list" class="space-y-2 max-h-[400px] overflow-auto"></div>
+            </div>
+            <div class="p-3 text-center text-xs text-gray-500 border-t border-white/5">click playlist to load</div>
+        </div>
+    </div>
+    
+    <div id="add-to-pl-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-md rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/10 flex justify-between items-center">
+                <span class="font-medium">Add to playlist</span>
+                <button onclick="hideAddToPlModal()" class="text-gray-400 text-xl">&times;</button>
+            </div>
+            <div id="playlist-options" class="p-3 max-h-80 overflow-auto"></div>
+            <div class="p-4"><button onclick="hideAddToPlModal()" class="w-full py-2.5 border border-zinc-700 rounded-xl">Cancel</button></div>
+        </div>
+    </div>
+    
+    <div id="create-pl-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-md rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/10 flex justify-between">
+                <span class="font-semibold">Create playlist</span>
+                <button onclick="closeCreatePlaylistModal()" class="text-gray-400 text-xl">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="text" id="new-pl-name" placeholder="Playlist name" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500">
+                <div class="flex gap-3">
+                    <button onclick="closeCreatePlaylistModal()" class="flex-1 py-2.5 border border-zinc-700 rounded-xl">Cancel</button>
+                    <button onclick="confirmCreatePlaylist()" class="flex-1 bg-blue-600 rounded-xl py-2.5">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="new-track-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-md rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/10 flex justify-between">
+                <span class="font-semibold">Add new track</span>
+                <button onclick="closeNewTrackModal()" class="text-gray-400 text-xl">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="text" id="new-track-title" placeholder="Track title" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none">
+                <input type="text" id="new-track-artist" placeholder="Artist (optional)" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none">
+                <input type="url" id="new-track-url" placeholder="Media URL (mp3, m4a, etc)" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 outline-none">
+                <div class="flex gap-3">
+                    <button onclick="closeNewTrackModal()" class="flex-1 py-2.5 border border-zinc-700 rounded-xl">Cancel</button>
+                    <button onclick="confirmAddNewTrack()" class="flex-1 bg-blue-600 rounded-xl py-2.5">Add Track</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 text-white text-sm px-5 py-2.5 rounded-full shadow-xl hidden z-50 backdrop-blur-sm"></div>
+
+    <script>
+        let tracks = [
+            { id: 1, title: "Walker", artist: "Alan", url: "music/Alan - Walker.mp3", duration: "0:00" },
+            { id: 2, title: "Mahtab", artist: "Ali Lohrasbi", url: "music/Ali Lohrasbi - Mahtab.mp3", duration: "0:00" },
+            { id: 3, title: "Iran Banoo", artist: "Ali Rahbari", url: "music/Ali Rahbari - Iran Banoo.mp3", duration: "0:00" },
+            { id: 4, title: "Man Asheghe Chashmat Shodam", artist: "Alireza Ghorbani", url: "music/Alireza Ghorbani - Man Asheghe Chashmat Shodam.mp3", duration: "0:00" },
+            { id: 5, title: "Parvaze Ghooha or Tasian", artist: "Alireza Ghorbani", url: "music/Alireza Ghorbani - Parvaze Ghooha or Tasian.mp3", duration: "0:00" },
+            { id: 6, title: "Sheyda", artist: "Alireza Ghorbani", url: "music/Alireza Ghorbani - Sheyda.mp3", duration: "0:00" },
+            { id: 7, title: "Bi Gharar", artist: "Amin Habibi", url: "music/Amin Habibi - Bi Gharar.mp3", duration: "0:00" },
+            { id: 8, title: "Hese Penhoon", artist: "Amir Khoshnegar", url: "music/Amir Khoshnegar - Hese Penhoon.mp3", duration: "0:00" },
+            { id: 9, title: "Man Bar NemiGardam", artist: "Amir Nazari & Ellie Johnson", url: "music/Amir Nazari & Ellie Johnson - Man Bar NemiGardam.mp3", duration: "0:00" },
+            { id: 10, title: "Nagoo Bargard", artist: "Amir Nazari", url: "music/Amir Nazari - Nagoo Bargard.mp3", duration: "0:00" },
+            { id: 11, title: "Begoo Binam", artist: "Armin Zarei", url: "music/Armin Zarei - Begoo Binam.mp3", duration: "0:00" },
+            { id: 12, title: "Hala Hey", artist: "Armin Zarei", url: "music/Armin Zarei - Hala Hey.mp3", duration: "0:00" },
+            { id: 13, title: "Atre Bahar", artist: "Aron Afshar", url: "music/Aron Afshar - Atre Bahar.mp3", duration: "0:00" },
+            { id: 14, title: "Gisoo Parishan", artist: "Aron Afshar", url: "music/Aron Afshar - Gisoo Parishan.mp3", duration: "0:00" },
+            { id: 15, title: "Janam Bash", artist: "Aron Afshar", url: "music/Aron Afshar - Janam Bash.mp3", duration: "0:00" },
+            { id: 16, title: "Shabe Royaei", artist: "Aron Afshar", url: "music/Aron Afshar - Shabe Royaei.mp3", duration: "0:00" },
+            { id: 17, title: "Tabibe Maher", artist: "Aron Afshar", url: "music/Aron Afshar - Tabibe Maher.mp3", duration: "0:00" },
+            { id: 18, title: "Zelzeleh", artist: "Aron Afshar", url: "music/Aron Afshar - Zelzeleh.mp3", duration: "0:00" },
+            { id: 19, title: "Akhmato Va kon", artist: "Behnam Bani", url: "music/Behnam Bani - Akhmato Va kon.mp3", duration: "0:00" },
+            { id: 20, title: "Ashegham Karde", artist: "Behnam Bani", url: "music/Behnam Bani - Ashegham Karde.mp3", duration: "0:00" },
+            { id: 21, title: "Bassame", artist: "Behnam Bani", url: "music/Behnam Bani - Bassame.mp3", duration: "0:00" },
+            { id: 22, title: "Ghorse Ghamar", artist: "Behnam Bani", url: "music/Behnam Bani - Ghorse Ghamar.mp3", duration: "0:00" },
+            { id: 23, title: "Khastam", artist: "Behnam Bani", url: "music/Behnam Bani - Khastam.mp3", duration: "0:00" },
+            { id: 24, title: "Kojaye In Shahri", artist: "Behnam Bani", url: "music/Behnam Bani - Kojaye In Shahri.mp3", duration: "0:00" },
+            { id: 25, title: "Setareh Mishi", artist: "Behnam Bani", url: "music/Behnam Bani - Setareh Mishi.mp3", duration: "0:00" },
+            { id: 26, title: "Zakhme Kari", artist: "Behnam Bani", url: "music/Behnam Bani - Zakhme Kari.mp3", duration: "0:00" },
+            { id: 27, title: "Ahay To", artist: "Benyamin Bahadori", url: "music/Benyamin Bahadori - Ahay To.mp3", duration: "0:00" },
+            { id: 28, title: "Donya Dige Mesle To Nadare", artist: "Benyamin Bahadori", url: "music/Benyamin Bahadori - Donya Dige Mesle To Nadare.mp3", duration: "0:00" },
+            { id: 29, title: "Khatereha", artist: "Benyamin Bahadori", url: "music/Benyamin Bahadori - Khatereha.mp3", duration: "0:00" },
+            { id: 30, title: "Shekanjegar", artist: "Dariush", url: "music/Dariush - Shekanjegar.mp3", duration: "0:00" },
+            { id: 31, title: "Love Is", artist: "Dekamond & Xaniar", url: "music/Dekamond & Xaniar - Love Is.mp3", duration: "0:00" },
+            { id: 32, title: "Koo Ta Biad", artist: "Donya Dadrasan", url: "music/Donya Dadrasan - Koo Ta Biad.mp3", duration: "0:00" },
+            { id: 33, title: "Boghz", artist: "Ehsan Khajeh Amiri", url: "music/Ehsan Khajeh Amiri - Boghz.mp3", duration: "0:00" },
+            { id: 34, title: "Naborde Ranj", artist: "Ehsan Khajeh Amiri", url: "music/Ehsan Khajeh Amiri - Naborde Ranj.mp3", duration: "0:00" },
+            { id: 35, title: "Taavaan", artist: "Ehsan Khajeh Amiri", url: "music/Ehsan Khajeh Amiri - Taavaan.mp3", duration: "0:00" },
+            { id: 36, title: "Che Konam", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Che Konam.mp3", duration: "0:00" },
+            { id: 37, title: "Delgir", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Delgir.mp3", duration: "0:00" },
+            { id: 38, title: "Emshab", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Emshab.mp3", duration: "0:00" },
+            { id: 39, title: "Khodahafez", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Khodahafez.mp3", duration: "0:00" },
+            { id: 40, title: "Mahe Mo", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Mahe Mo.mp3", duration: "0:00" },
+            { id: 41, title: "Parseh", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Parseh.mp3", duration: "0:00" },
+            { id: 42, title: "Tardid", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Tardid.mp3", duration: "0:00" },
+            { id: 43, title: "To", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - To.mp3", duration: "0:00" },
+            { id: 44, title: "Vay Agar", artist: "Erfan Tahmasbi", url: "music/Erfan Tahmasbi - Vay Agar.mp3", duration: "0:00" },
+            { id: 45, title: "Taasobi", artist: "Farsha Azadi", url: "music/Farsha Azadi - Taasobi.mp3", duration: "0:00" },
+            { id: 46, title: "Ashoub", artist: "Farshad Azadi", url: "music/Farshad Azadi - Ashoub.mp3", duration: "0:00" },
+            { id: 47, title: "Divanam Nako", artist: "Farshad Azadi", url: "music/Farshad Azadi - Divanam Nako.mp3", duration: "0:00" },
+            { id: 48, title: "To Migi Ye Vaghta Gahi", artist: "Ferovaal", url: "music/Ferovaal - To Migi Ye Vaghta Gahi.mp3", duration: "0:00" },
+            { id: 49, title: "Age Be To Nemiresam", artist: "Hamid Askari", url: "music/Hamid Askari - Age Be To Nemiresam.mp3", duration: "0:00" },
+            { id: 50, title: "Ahay To Ke Eshghe Mani", artist: "Hamid Askari", url: "music/Hamid Askari - Ahay To Ke Eshghe Mani.mp3", duration: "0:00" },
+            { id: 51, title: "Gozashteh", artist: "Hamid Askari", url: "music/Hamid Askari - Gozashteh.mp3", duration: "0:00" },
+            { id: 52, title: "Khoshbakhti", artist: "Hamid Askari", url: "music/Hamid Askari - Khoshbakhti.mp3", duration: "0:00" },
+            { id: 53, title: "Taghas", artist: "Hamid Askari", url: "music/Hamid Askari - Taghas.mp3", duration: "0:00" },
+            { id: 54, title: "Moohash", artist: "Javad Ara", url: "music/Javad Ara - Moohash.mp3", duration: "0:00" },
+            { id: 55, title: "Euphoria", artist: "Loreen", url: "music/Loreen - Euphoria.mp3", duration: "0:00" },
+            { id: 56, title: "Is It Love", artist: "Loreen", url: "music/Loreen - Is It Love.mp3", duration: "0:00" },
+            { id: 57, title: "Tattoo", artist: "Loreen", url: "music/Loreen - Tattoo.mp3", duration: "0:00" },
+            { id: 58, title: "Moteasefane", artist: "Majid Razavi", url: "music/Majid Razavi - Moteasefane.mp3", duration: "0:00" },
+            { id: 59, title: "Leila", artist: "Maziyar Fallahi", url: "music/Maziyar Fallahi - Leila.mp3", duration: "0:00" },
+            { id: 60, title: "Atish Pareh", artist: "Mehdi Ahmadvand", url: "music/Mehdi Ahmadvand - Atish Pareh.mp3", duration: "0:00" },
+            { id: 61, title: "Hess Mikonam Toro", artist: "Mehdi Yaghmaei", url: "music/Mehdi Yaghmaei - Hess Mikonam Toro.mp3", duration: "0:00" },
+            { id: 62, title: "Janan", artist: "Mehdi Yaghmaei", url: "music/Mehdi Yaghmaei - Janan.mp3", duration: "0:00" },
+            { id: 63, title: "Bahane Man", artist: "MINEL", url: "music/MINEL - Bahane Man.mp3", duration: "0:00" },
+            { id: 64, title: "Darya", artist: "MINEL", url: "music/MINEL - Darya.mp3", duration: "0:00" },
+            { id: 65, title: "Yaghi", artist: "MINEL", url: "music/MINEL - Yaghi.mp3", duration: "0:00" },
+            { id: 66, title: "Zire Baroona Gomam - ❤️", artist: "MINEL", url: "music/MINEL - Zire Baroona Gomam - ❤️.mp3", duration: "0:00" },
+            { id: 67, title: "Bargardi Ey Kash", artist: "Mohammad Alizadeh", url: "music/Mohammad Alizadeh - Bargardi Ey Kash.mp3", duration: "0:00" },
+            { id: 68, title: "Fekresham Nakon", artist: "Mohammad Alizadeh", url: "music/Mohammad Alizadeh - Fekresham Nakon.mp3", duration: "0:00" },
+            { id: 69, title: "Hamsafar", artist: "Mohammad Alizadeh", url: "music/Mohammad Alizadeh - Hamsafar.mp3", duration: "0:00" },
+            { id: 70, title: "Joz To", artist: "Mohammad Alizadeh", url: "music/Mohammad Alizadeh - Joz To.mp3", duration: "0:00" },
+            { id: 71, title: "Armaghane Tariki", artist: "Mohammad Esfahani", url: "music/Mohammad Esfahani - Armaghane Tariki.mp3", duration: "0:00" },
+            { id: 72, title: "Be Raghs Aa (320)", artist: "Mohsen Chavoshi", url: "music/Mohsen Chavoshi - Be Raghs Aa (320).mp3", duration: "0:00" },
+            { id: 73, title: "Koli", artist: "Mohsen Chavoshi", url: "music/Mohsen Chavoshi - Koli.mp3", duration: "0:00" },
+            { id: 74, title: "Sange Saboor", artist: "Mohsen Chavoshi", url: "music/Mohsen Chavoshi - Sange Saboor.mp3", duration: "0:00" },
+            { id: 75, title: "Zang Bezani", artist: "Mohsen Ebrahimzadeh", url: "music/Mohsen Ebrahimzadeh - Zang Bezani.mp3", duration: "0:00" },
+            { id: 76, title: "Bacha Soosool", artist: "Mohsen Lorestani", url: "music/Mohsen Lorestani - Bacha Soosool.mp3", duration: "0:00" },
+            { id: 77, title: "Bache Gherti", artist: "Mohsen Lorestani", url: "music/Mohsen Lorestani - Bache Gherti.mp3", duration: "0:00" },
+            { id: 78, title: "Nashkan Delamo", artist: "Mohsen Yeganeh & Mohsen Chavoshi & Hamed Hakan", url: "music/Mohsen Yeganeh & Mohsen Chavoshi & Hamed Hakan - Nashkan Delamo.mp3", duration: "0:00" },
+            { id: 79, title: "Adamha", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Adamha.mp3", duration: "0:00" },
+            { id: 80, title: "Aseman Hamishe Abri Nist", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Aseman Hamishe Abri Nist.mp3", duration: "0:00" },
+            { id: 81, title: "Bemoon", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Bemoon.mp3", duration: "0:00" },
+            { id: 82, title: "Betars", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Betars.mp3", duration: "0:00" },
+            { id: 83, title: "Khiale To", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Khiale To.mp3", duration: "0:00" },
+            { id: 84, title: "Nabashi", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Nabashi.mp3", duration: "0:00" },
+            { id: 85, title: "Nakhastam", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Nakhastam.mp3", duration: "0:00" },
+            { id: 86, title: "Rage Khab", artist: "Mohsen Yeganeh", url: "music/Mohsen Yeganeh - Rage Khab.mp3", duration: "0:00" },
+            { id: 87, title: "Negarane Mani", artist: "Morteza Pashaei", url: "music/Morteza Pashaei - Negarane Mani.mp3", duration: "0:00" },
+            { id: 88, title: "Yeki Hast", artist: "Morteza Pashaei", url: "music/Morteza Pashaei - Yeki Hast.mp3", duration: "0:00" },
+            { id: 89, title: "Didi 2", artist: "Noura", url: "music/Noura - Didi 2.mp3", duration: "0:00" },
+            { id: 90, title: "Didi", artist: "Noura", url: "music/Noura - Didi.mp3", duration: "0:00" },
+            { id: 91, title: "Majnoun", artist: "Noura", url: "music/Noura - Majnoun.mp3", duration: "0:00" },
+            { id: 92, title: "NagooTanhaei", artist: "Noura", url: "music/Noura - NagooTanhaei.mp3", duration: "0:00" },
+            { id: 93, title: "Delaram", artist: "Puzzle Band", url: "music/Puzzle Band - Delaram.mp3", duration: "0:00" },
+            { id: 94, title: "Maahe Tamashayi", artist: "Ragheb", url: "music/Ragheb - Maahe Tamashayi.mp3", duration: "0:00" },
+            { id: 95, title: "Masalan", artist: "Reza Sadeghi", url: "music/Reza Sadeghi - Masalan.mp3", duration: "0:00" },
+            { id: 96, title: "Ye Kari Kon (New Version)", artist: "Reza Sadeghi", url: "music/Reza Sadeghi - Ye Kari Kon (New Version).mp3", duration: "0:00" },
+            { id: 97, title: "Donya", artist: "Saman Jalili", url: "music/Saman Jalili - Donya.mp3", duration: "0:00" },
+            { id: 98, title: "Taghdir", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Taghdir.mp3", duration: "0:00" },
+            { id: 99, title: "Gheseye Eshgh", artist: "Shahram Shokohi", url: "music/Shahram Shokohi - Gheseye Eshgh.mp3", duration: "0:00" },
+            { id: 100, title: "Zibaye Bi Ehsas", artist: "Shahram Shokohi", url: "music/Shahram Shokohi - Zibaye Bi Ehsas.mp3", duration: "0:00" },
+            { id: 101, title: "Ghoughaye Setaregan", artist: "Shakila", url: "music/Shakila - Ghoughaye Setaregan.mp3", duration: "0:00" },
+            { id: 102, title: "Cheap Thrills", artist: "Sia", url: "music/Sia - Cheap Thrills.mp3", duration: "0:00" },
+            { id: 103, title: "Masti", artist: "Sina Parsian", url: "music/Sina Parsian - Masti.mp3", duration: "0:00" },
+            { id: 104, title: "Ahange To", artist: "Soheil Mehrzadegan", url: "music/Soheil Mehrzadegan - Ahange To.mp3", duration: "0:00" },
+            { id: 105, title: "Gol Sangam", artist: "Soheil Mehrzadegan", url: "music/Soheil Mehrzadegan - Gol Sangam.mp3", duration: "0:00" },
+            { id: 106, title: "Dokhtar Irooni", artist: "Sohrab Pakzad", url: "music/Sohrab Pakzad - Dokhtar Irooni.mp3", duration: "0:00" },
+            { id: 107, title: "Ye Setareh", artist: "Xaniar Khosravi", url: "music/Xaniar Khosravi - Ye Setareh.mp3", duration: "0:00" },
+            { id: 108, title: "Khoobetam Didam", artist: "Yasin Torki", url: "music/Yasin Torki - Khoobetam Didam.mp3", duration: "0:00" }
+        ];
+
+        let playlists = [
+            { id: 201, name: "Alan", trackIds: [1] },
+            { id: 202, name: "Ali Lohrasbi", trackIds: [2] },
+            { id: 203, name: "Ali Rahbari", trackIds: [3] },
+            { id: 204, name: "Alireza Ghorbani", trackIds: [4, 5, 6] },
+            { id: 205, name: "Amin Habibi", trackIds: [7] },
+            { id: 206, name: "Amir Khoshnegar", trackIds: [8] },
+            { id: 207, name: "Amir Nazari & Ellie Johnson", trackIds: [9] },
+            { id: 208, name: "Amir Nazari", trackIds: [10] },
+            { id: 209, name: "Armin Zarei", trackIds: [11, 12] },
+            { id: 210, name: "Aron Afshar", trackIds: [13, 14, 15, 16, 17, 18] },
+            { id: 211, name: "Behnam Bani", trackIds: [19, 20, 21, 22, 23, 24, 25, 26] },
+            { id: 212, name: "Benyamin Bahadori", trackIds: [27, 28, 29] },
+            { id: 213, name: "Dariush", trackIds: [30] },
+            { id: 214, name: "Dekamond & Xaniar", trackIds: [31] },
+            { id: 215, name: "Donya Dadrasan", trackIds: [32] },
+            { id: 216, name: "Ehsan Khajeh Amiri", trackIds: [33, 34, 35] },
+            { id: 217, name: "Erfan Tahmasbi", trackIds: [36, 37, 38, 39, 40, 41, 42, 43, 44] },
+            { id: 218, name: "Farsha Azadi", trackIds: [45] },
+            { id: 219, name: "Farshad Azadi", trackIds: [46, 47] },
+            { id: 220, name: "Ferovaal", trackIds: [48] },
+            { id: 221, name: "Hamid Askari", trackIds: [49, 50, 51, 52, 53] },
+            { id: 222, name: "Javad Ara", trackIds: [54] },
+            { id: 223, name: "Loreen", trackIds: [55, 56, 57] },
+            { id: 224, name: "Majid Razavi", trackIds: [58] },
+            { id: 225, name: "Maziyar Fallahi", trackIds: [59] },
+            { id: 226, name: "Mehdi Ahmadvand", trackIds: [60] },
+            { id: 227, name: "Mehdi Yaghmaei", trackIds: [61, 62] },
+            { id: 228, name: "MINEL", trackIds: [63, 64, 65, 66] },
+            { id: 229, name: "Mohammad Alizadeh", trackIds: [67, 68, 69, 70] },
+            { id: 230, name: "Mohammad Esfahani", trackIds: [71] },
+            { id: 231, name: "Mohsen Chavoshi", trackIds: [72, 73, 74] },
+            { id: 232, name: "Mohsen Ebrahimzadeh", trackIds: [75] },
+            { id: 233, name: "Mohsen Lorestani", trackIds: [76, 77] },
+            { id: 234, name: "Mohsen Yeganeh & Mohsen Chavoshi & Hamed Hakan", trackIds: [78] },
+            { id: 235, name: "Mohsen Yeganeh", trackIds: [79, 80, 81, 82, 83, 84, 85, 86] },
+            { id: 236, name: "Morteza Pashaei", trackIds: [87, 88] },
+            { id: 237, name: "Noura", trackIds: [89, 90, 91, 92] },
+            { id: 238, name: "Puzzle Band", trackIds: [93] },
+            { id: 239, name: "Ragheb", trackIds: [94] },
+            { id: 240, name: "Reza Sadeghi", trackIds: [95, 96] },
+            { id: 241, name: "Saman Jalili", trackIds: [97] },
+            { id: 242, name: "Shadmehr Aghili", trackIds: [98] },
+            { id: 243, name: "Shahram Shokohi", trackIds: [99, 100] },
+            { id: 244, name: "Shakila", trackIds: [101] },
+            { id: 245, name: "Sia", trackIds: [102] },
+            { id: 246, name: "Sina Parsian", trackIds: [103] },
+            { id: 247, name: "Soheil Mehrzadegan", trackIds: [104, 105] },
+            { id: 248, name: "Sohrab Pakzad", trackIds: [106] },
+            { id: 249, name: "Xaniar Khosravi", trackIds: [107] },
+            { id: 250, name: "Yasin Torki", trackIds: [108] }
+        ];
+        
+        let currentTrackIndex = -1;
+        let currentPlaylist = null;
+        let queue = [];
+        let isPlaying = false;
+        let isShuffle = false;
+        let repeatMode = 0;
+        let currentVolume = 1;
+        let isMuted = false;
+        const player = document.getElementById('main-player');
+        
+        function saveData() { localStorage.setItem('waveplay_tracks', JSON.stringify(tracks)); localStorage.setItem('waveplay_playlists', JSON.stringify(playlists)); }
+        function loadData() { let t = localStorage.getItem('waveplay_tracks'); if(t) tracks = JSON.parse(t); let p = localStorage.getItem('waveplay_playlists'); if(p) playlists = JSON.parse(p); }
+        function formatTime(sec) { if(!sec || isNaN(sec)) return "0:00"; let m = Math.floor(sec/60); let s = Math.floor(sec%60); return `${m}:${s<10?'0':''}${s}`; }
+        
+        function updateProgress() { if(!player.duration) return; let percent = (player.currentTime/player.duration)*100; document.getElementById('progress-bar').style.width = `${percent}%`; document.getElementById('current-time').innerText = formatTime(player.currentTime); }
+        function seek(e) { let rect = document.getElementById('progress-container').getBoundingClientRect(); let pos = (e.clientX - rect.left)/rect.width; player.currentTime = pos * player.duration; }
+        
+        function updateHeaderNowPlaying() {
+            let playlistSpan = document.getElementById('header-playlist-name');
+            let trackSpan = document.getElementById('header-track-name');
+            let currentTrackId = (queue.length && currentTrackIndex >=0) ? queue[currentTrackIndex] : null;
+            let trackObj = currentTrackId ? tracks.find(t => t.id === currentTrackId) : null;
+            if(currentPlaylist && currentPlaylist.name) {
+                playlistSpan.innerText = `${currentPlaylist.name} •`;
+                playlistSpan.classList.remove('hidden');
+            } else {
+                playlistSpan.innerText = '';
+            }
+            if(trackObj) {
+                trackSpan.innerText = trackObj.title;
+            } else {
+                trackSpan.innerText = '';
+            }
+        }
+        
+        function playTrack(trackId) {
+            let track = tracks.find(t => t.id === trackId);
+            if(!track) return;
+            document.getElementById('no-media-placeholder').classList.add('hidden');
+            player.src = track.url;
+            player.volume = isMuted ? 0 : currentVolume;
+            player.onloadedmetadata = () => {
+                document.getElementById('duration').innerText = track.duration || formatTime(player.duration);
+                document.getElementById('overlay-title').innerText = track.title;
+                document.getElementById('overlay-artist').innerText = track.artist || '';
+                document.getElementById('overlay-info').classList.remove('hidden');
+                updateHeaderNowPlaying();
+            };
+            player.play().then(() => { isPlaying = true; updatePlayIcon(); }).catch(e => toast("Cannot play track", true));
+            if(currentPlaylist) {
+                let idx = queue.indexOf(trackId);
+                if(idx !== -1) currentTrackIndex = idx;
+            } else {
+                queue = [trackId];
+                currentTrackIndex = 0;
+                currentPlaylist = null;
+            }
+            updateHeaderNowPlaying();
+        }
+        
+        function togglePlay() { if(!player.src && tracks.length) playTrack(tracks[0].id); else if(isPlaying) { player.pause(); isPlaying=false; updatePlayIcon(); } else { player.play(); isPlaying=true; updatePlayIcon(); } }
+        function updatePlayIcon() { let icon = document.getElementById('play-icon'); if(isPlaying) { icon.classList.remove('fa-play'); icon.classList.add('fa-pause'); } else { icon.classList.remove('fa-pause'); icon.classList.add('fa-play'); } }
+        function playNext() { if(!queue.length) return; let idx = (currentTrackIndex + 1) % queue.length; currentTrackIndex = idx; playTrack(queue[idx]); }
+        function playPrevious() { if(!queue.length) return; let idx = (currentTrackIndex - 1 + queue.length) % queue.length; currentTrackIndex = idx; playTrack(queue[idx]); }
+        function stopPlayback() { player.pause(); player.currentTime = 0; isPlaying = false; updatePlayIcon(); }
+        function skipBackward() { player.currentTime = Math.max(0, player.currentTime - 10); }
+        function skipForward() { player.currentTime = Math.min(player.duration || 0, player.currentTime + 10); }
+        
+        function toggleShuffle() { isShuffle = !isShuffle; let btn = document.getElementById('shuffle-btn'); if(isShuffle) { btn.classList.add('text-blue-400'); if(currentPlaylist && queue.length>1) { queue = [...queue].sort(()=>Math.random()-0.5); currentTrackIndex=0; toast("Shuffle on"); } } else { btn.classList.remove('text-blue-400'); toast("Shuffle off"); } }
+        function toggleRepeat() { repeatMode = (repeatMode+1)%3; let icon = document.getElementById('repeat-icon'); if(repeatMode===1) { icon.classList.add('text-blue-400'); toast("Repeat: one"); } else if(repeatMode===2) { icon.classList.add('text-blue-400'); toast("Repeat: all"); } else { icon.classList.remove('text-blue-400'); toast("Repeat off"); } }
+        function setVolume(v) { currentVolume = parseFloat(v); player.volume = currentVolume; isMuted = currentVolume===0; updateVolumeIcon(); }
+        function toggleMute() { isMuted = !isMuted; player.volume = isMuted ? 0 : currentVolume; updateVolumeIcon(); }
+        function updateVolumeIcon() { let icon = document.getElementById('volume-icon'); if(player.volume===0) icon.className = "fa-solid fa-volume-xmark text-gray-400 hover:text-white cursor-pointer text-sm"; else if(player.volume<0.5) icon.className = "fa-solid fa-volume-low text-gray-400 hover:text-white cursor-pointer text-sm"; else icon.className = "fa-solid fa-volume-high text-gray-400 hover:text-white cursor-pointer text-sm"; }
+        
+        function removeCurrentFromPlaylist() {
+            if(!currentPlaylist) { toast("No active playlist", true); return; }
+            let currentId = queue[currentTrackIndex];
+            if(!currentId) return;
+            let pl = playlists.find(p=>p.id === currentPlaylist.id);
+            if(!pl) return;
+            let idx = pl.trackIds.indexOf(currentId);
+            if(idx === -1) { toast("Track not in playlist", true); return; }
+            pl.trackIds.splice(idx,1);
+            saveData();
+            let newQueue = [...pl.trackIds];
+            if(newQueue.length === 0) {
+                currentPlaylist = null;
+                queue = [];
+                currentTrackIndex = -1;
+                stopPlayback();
+                document.getElementById('no-media-placeholder').classList.remove('hidden');
+                toast("Playlist empty, removed track");
+            } else {
+                let oldPos = currentTrackIndex;
+                queue = newQueue;
+                let newIdx = queue.indexOf(currentId);
+                if(newIdx !== -1) { currentTrackIndex = newIdx; playTrack(currentId); }
+                else { currentTrackIndex = 0; playTrack(queue[0]); }
+            }
+            updateHeaderNowPlaying();
+            toast("Removed from playlist");
+        }
+        
+        function addCurrentToPlaylist() { if(!queue.length || currentTrackIndex<0) { toast("No track playing", true); return; } let trackId = queue[currentTrackIndex]; showAddToPlaylistOptions(trackId); }
+        
+        function showLibraryModal() { document.getElementById('library-modal').classList.remove('hidden'); renderLibrary(); }
+        function hideLibraryModal() { document.getElementById('library-modal').classList.add('hidden'); }
+        function showPlaylistsModal() { document.getElementById('playlists-modal').classList.remove('hidden'); renderPlaylists(); }
+        function hidePlaylistsModal() { document.getElementById('playlists-modal').classList.add('hidden'); }
+        
+        function renderLibrary(filter=null) { let list = document.getElementById('library-list'); let items = filter || tracks; list.innerHTML = items.map(t => `<div class="track-item px-5 py-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/5"><div class="flex gap-3"><div class="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center"><i class="fa-solid fa-music text-blue-400 text-sm"></i></div><div><div class="font-medium">${escapeHtml(t.title)}</div><div class="text-xs text-gray-400">${t.artist||'Artist'}</div></div></div><div class="flex gap-2"><span class="text-xs text-gray-500">${t.duration}</span><button onclick="event.stopPropagation(); playTrack(${t.id})" class="bg-zinc-800 p-1.5 rounded-xl hover:bg-blue-600"><i class="fa-solid fa-play text-xs"></i></button><button onclick="event.stopPropagation(); showAddToPlaylistOptions(${t.id})" class="text-gray-400 hover:text-blue-400"><i class="fa-solid fa-plus"></i></button></div></div>`).join(''); }
+        function filterLibrary() { let val = document.getElementById('library-search').value.toLowerCase(); if(!val) renderLibrary(); else renderLibrary(tracks.filter(t=> t.title.toLowerCase().includes(val)|| (t.artist||'').toLowerCase().includes(val))); }
+        function renderPlaylists() { let cont = document.getElementById('playlists-list'); cont.innerHTML = playlists.map(pl => `<div class="flex justify-between items-center p-3 rounded-xl hover:bg-white/5 cursor-pointer" onclick="loadPlaylist(${pl.id})"><div class="flex gap-3"><i class="fa-solid fa-list text-blue-400"></i><div><div class="font-medium">${escapeHtml(pl.name)}</div><div class="text-xs text-gray-500">${pl.trackIds.length} tracks</div></div></div><button class="bg-blue-600/80 text-xs px-3 py-1.5 rounded-full">Play</button></div>`).join(''); }
+        function loadPlaylist(plId) { let pl = playlists.find(p=>p.id===plId); if(!pl) return; currentPlaylist = {...pl}; queue = [...pl.trackIds]; if(queue.length) { currentTrackIndex = 0; playTrack(queue[0]); } else toast("Empty playlist"); hidePlaylistsModal(); updateHeaderNowPlaying(); }
+        
+        function showCreatePlaylistModal() { document.getElementById('create-pl-modal').classList.remove('hidden'); document.getElementById('new-pl-name').value = ''; }
+        function closeCreatePlaylistModal() { document.getElementById('create-pl-modal').classList.add('hidden'); }
+        function confirmCreatePlaylist() { let name = document.getElementById('new-pl-name').value.trim(); if(!name) return; let newPl = { id: Date.now(), name: name, trackIds: [] }; playlists.unshift(newPl); saveData(); closeCreatePlaylistModal(); renderPlaylists(); toast(`Playlist "${name}" created`); }
+        function showNewTrackModal() { document.getElementById('new-track-modal').classList.remove('hidden'); document.getElementById('new-track-title').value=''; document.getElementById('new-track-artist').value=''; document.getElementById('new-track-url').value=''; }
+        function closeNewTrackModal() { document.getElementById('new-track-modal').classList.add('hidden'); }
+        function confirmAddNewTrack() { let title = document.getElementById('new-track-title').value.trim(); let artist = document.getElementById('new-track-artist').value.trim() || "Unknown"; let url = document.getElementById('new-track-url').value.trim(); if(!title || !url) { toast("Title & URL required", true); return; } let newTrack = { id: Date.now(), title, artist, url, duration: "0:00" }; tracks.unshift(newTrack); saveData(); closeNewTrackModal(); renderLibrary(); toast("Track added"); }
+        
+        function showAddToPlaylistOptions(trackId) { let container = document.getElementById('playlist-options'); container.innerHTML = ''; let modal = document.getElementById('add-to-pl-modal'); modal.classList.remove('hidden'); if(playlists.length===0) { container.innerHTML = `<div class="p-5 text-center text-gray-400">No playlists yet</div>`; return; } playlists.forEach(pl => { let exists = pl.trackIds.includes(trackId); let btn = document.createElement('div'); btn.className = `p-3 flex justify-between items-center rounded-xl hover:bg-white/5 cursor-pointer ${exists ? 'opacity-50' : ''}`; btn.innerHTML = `<span><i class="fa-regular fa-rectangle-list mr-2"></i>${escapeHtml(pl.name)}</span> ${exists ? '<span class="text-green-400 text-xs">✓ added</span>' : '<span class="text-blue-400">+ Add</span>'}`; if(!exists) btn.onclick = () => { pl.trackIds.push(trackId); saveData(); hideAddToPlModal(); toast(`Added to ${pl.name}`); }; container.appendChild(btn); }); }
+        function hideAddToPlModal() { document.getElementById('add-to-pl-modal').classList.add('hidden'); }
+        
+        function toast(msg, err=false) { let t = document.getElementById('toast'); t.innerText = msg; t.classList.remove('hidden'); if(err) t.classList.add('bg-red-900'); else t.classList.remove('bg-red-900'); setTimeout(()=>t.classList.add('hidden'), 2200); }
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+        
+        function setupEvents() { player.addEventListener('timeupdate', updateProgress); player.addEventListener('ended', () => { if(repeatMode===1) { player.currentTime=0; player.play(); } else if(repeatMode===2 || currentTrackIndex < queue.length-1) playNext(); else { isPlaying=false; updatePlayIcon(); } }); player.addEventListener('waiting', ()=>document.getElementById('loading-indicator').classList.remove('hidden')); player.addEventListener('canplay', ()=>document.getElementById('loading-indicator').classList.add('hidden')); player.addEventListener('error', ()=>{ document.getElementById('loading-indicator').classList.add('hidden'); toast("Playback error", true); }); }
+        function init() { loadData(); setupEvents(); document.getElementById('no-media-placeholder').classList.remove('hidden'); updateVolumeIcon(); window.addEventListener('keydown', e=>{ if(e.target.tagName==='INPUT') return; if(e.code==='Space') { e.preventDefault(); togglePlay(); } if(e.code==='ArrowRight') skipForward(); if(e.code==='ArrowLeft') skipBackward(); }); }
+        
+        window.onload = init;
+        window.togglePlay=togglePlay; window.playNext=playNext; window.playPrevious=playPrevious; window.stopPlayback=stopPlayback; window.skipBackward=skipBackward; window.skipForward=skipForward; window.showLibraryModal=showLibraryModal; window.hideLibraryModal=hideLibraryModal; window.showPlaylistsModal=showPlaylistsModal; window.hidePlaylistsModal=hidePlaylistsModal; window.loadPlaylist=loadPlaylist; window.playTrack=playTrack; window.addCurrentToPlaylist=addCurrentToPlaylist; window.removeCurrentFromPlaylist=removeCurrentFromPlaylist; window.toggleShuffle=toggleShuffle; window.toggleRepeat=toggleRepeat; window.setVolume=setVolume; window.toggleMute=toggleMute; window.seek=seek; window.filterLibrary=filterLibrary; window.hideAddToPlModal=hideAddToPlModal; window.showCreatePlaylistModal=showCreatePlaylistModal; window.closeCreatePlaylistModal=closeCreatePlaylistModal; window.confirmCreatePlaylist=confirmCreatePlaylist; window.showNewTrackModal=showNewTrackModal; window.closeNewTrackModal=closeNewTrackModal; window.confirmAddNewTrack=confirmAddNewTrack; window.showAddToPlaylistOptions=showAddToPlaylistOptions;
+    </script>
+</body>
+</html>
