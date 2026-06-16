@@ -89,21 +89,21 @@
     <div class="max-w-7xl mx-auto w-full flex flex-col h-full px-3 md:px-5">
         
         <header class="flex items-center justify-between py-2.5 border-b border-white/10 shrink-0">
-            <div class="flex items-center gap-2">
-                <div class="bg-gradient-to-tr from-blue-500 to-indigo-600 w-2 h-2 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <i class="fa-solid fa-waveform text-white text-base"></i>
+            <div class="flex items-center gap-2 me-2">
+                <div class="bg-gradient-to-tr from-blue-500 to-indigo-600 w-2 h-8 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20" onclick="confirmClearStorage()">
+                    <i class="fa-solid fa-waveform text-white text-base cursor-pointer"></i>
                 </div>
                 <span class="font-bold text-xl tracking-tight bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">WavePlay</span>
             </div>
             
-            <div id="header-now-playing" class="text-right max-w-[240px] md:max-w-sm truncate">
+            <div id="header-now-playing" class="text-right max-w-[240px] md:max-w-sm truncate ms-2">
                 <span id="header-playlist-name" class="text-xs font-medium text-blue-300/80"></span>
                 <span id="header-track-name" class="text-sm font-medium text-gray-200 ml-1"></span>
             </div>
         </header>
         
         <div class="flex-1 flex items-center justify-center py-4 md:py-6 wave-bg-neutral relative" id="player-container">
-            <div class="w-full max-w-3xl">
+            <div class="w-full max-w-3xl aspect-video mx-auto">
                 <div class="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl glass-video aspect-video mx-auto bg-black/50 backdrop-blur-sm">
                     <video id="main-player" class="w-full h-full object-contain" preload="metadata"></video>
                     
@@ -224,6 +224,12 @@
                 <button onclick="showCreatePlaylistModal()" class="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-dashed border-gray-600 rounded-xl flex items-center justify-center gap-2 text-sm mb-4">
                     <i class="fa-solid fa-plus"></i> New Playlist
                 </button>
+                <div class="p-4 border-b border-white/10">
+                    <div class="relative">
+                        <i class="fa-solid fa-search absolute left-4 top-3 text-gray-500 text-sm"></i>
+                        <input id="playlist-search" onkeyup="filterPlaylists()" type="text" placeholder="Search playlists..." class="w-full bg-zinc-800 border border-zinc-700 rounded-xl py-2.5 pl-10 text-sm outline-none focus:border-blue-500">
+                    </div>
+                </div>
                 <div id="playlists-list" class="space-y-2 max-h-[400px] overflow-auto"></div>
             </div>
             <div class="p-3 text-center text-xs text-gray-500 border-t border-white/5">click playlist to load</div>
@@ -274,7 +280,22 @@
             </div>
         </div>
     </div>
-    
+
+    <div id="clear-storage-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-sm rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/10">
+                <h3 class="font-semibold text-lg">Clear Storage</h3>
+            </div>
+            <div class="p-5">
+                <p class="text-gray-300 text-sm">Do you want to clear browser cookies (localStorage) and reload?</p>
+                <div class="flex gap-3 mt-5">
+                    <button onclick="hideClearStorageModal()" class="flex-1 py-2.5 border border-zinc-700 rounded-xl">Cancel</button>
+                    <button onclick="confirmClearStorageAction()" class="flex-1 bg-red-600 rounded-xl py-2.5 hover:bg-red-500">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 text-white text-sm px-5 py-2.5 rounded-full shadow-xl hidden z-50 backdrop-blur-sm"></div>
 
     <script>
@@ -386,7 +407,13 @@
             { id: 105, title: "Gol Sangam", artist: "Soheil Mehrzadegan", url: "music/Soheil Mehrzadegan - Gol Sangam.mp3", duration: "0:00" },
             { id: 106, title: "Dokhtar Irooni", artist: "Sohrab Pakzad", url: "music/Sohrab Pakzad - Dokhtar Irooni.mp3", duration: "0:00" },
             { id: 107, title: "Ye Setareh", artist: "Xaniar Khosravi", url: "music/Xaniar Khosravi - Ye Setareh.mp3", duration: "0:00" },
-            { id: 108, title: "Khoobetam Didam", artist: "Yasin Torki", url: "music/Yasin Torki - Khoobetam Didam.mp3", duration: "0:00" }
+            { id: 108, title: "Khoobetam Didam", artist: "Yasin Torki", url: "music/Yasin Torki - Khoobetam Didam.mp3", duration: "0:00" },
+            { id: 109, title: "Batel", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Batel.mp3", duration: "0:00" },
+            { id: 110, title: "Entekhab Slow", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Entekhab Slow.mp3", duration: "0:00" },
+            { id: 111, title: "Entekhab", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Entekhab.mp3", duration: "0:00" },
+            { id: 112, title: "Khabe Khosh", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Khabe Khosh.mp3", duration: "0:00" },
+            { id: 113, title: "Mahaal", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Mahaal.mp3", duration: "0:00" },
+            { id: 114, title: "Tamasha", artist: "Shadmehr Aghili", url: "music/Shadmehr Aghili - Tamasha.mp3", duration: "0:00" }
         ];
 
         let playlists = [
@@ -431,7 +458,7 @@
             { id: 239, name: "Ragheb", trackIds: [94] },
             { id: 240, name: "Reza Sadeghi", trackIds: [95, 96] },
             { id: 241, name: "Saman Jalili", trackIds: [97] },
-            { id: 242, name: "Shadmehr Aghili", trackIds: [98] },
+            { id: 242, name: "Shadmehr Aghili", trackIds: [98, 109, 110, 111, 112, 113, 114] },
             { id: 243, name: "Shahram Shokohi", trackIds: [99, 100] },
             { id: 244, name: "Shakila", trackIds: [101] },
             { id: 245, name: "Sia", trackIds: [102] },
@@ -549,12 +576,13 @@
         
         function showLibraryModal() { document.getElementById('library-modal').classList.remove('hidden'); renderLibrary(); }
         function hideLibraryModal() { document.getElementById('library-modal').classList.add('hidden'); }
-        function showPlaylistsModal() { document.getElementById('playlists-modal').classList.remove('hidden'); renderPlaylists(); }
+        function showPlaylistsModal() { document.getElementById('playlists-modal').classList.remove('hidden'); document.getElementById('playlist-search').value = ''; renderPlaylists(); }
+        function filterPlaylists() { let val = document.getElementById('playlist-search').value.toLowerCase(); let filtered = playlists.filter(p => p.name.toLowerCase().includes(val)); renderPlaylists(filtered); }
         function hidePlaylistsModal() { document.getElementById('playlists-modal').classList.add('hidden'); }
         
         function renderLibrary(filter=null) { let list = document.getElementById('library-list'); let items = filter || tracks; list.innerHTML = items.map(t => `<div class="track-item px-5 py-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/5"><div class="flex gap-3"><div class="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center"><i class="fa-solid fa-music text-blue-400 text-sm"></i></div><div><div class="font-medium">${escapeHtml(t.title)}</div><div class="text-xs text-gray-400">${t.artist||'Artist'}</div></div></div><div class="flex gap-2"><span class="text-xs text-gray-500">${t.duration}</span><button onclick="event.stopPropagation(); playTrack(${t.id})" class="bg-zinc-800 p-1.5 rounded-xl hover:bg-blue-600"><i class="fa-solid fa-play text-xs"></i></button><button onclick="event.stopPropagation(); showAddToPlaylistOptions(${t.id})" class="text-gray-400 hover:text-blue-400"><i class="fa-solid fa-plus"></i></button></div></div>`).join(''); }
         function filterLibrary() { let val = document.getElementById('library-search').value.toLowerCase(); if(!val) renderLibrary(); else renderLibrary(tracks.filter(t=> t.title.toLowerCase().includes(val)|| (t.artist||'').toLowerCase().includes(val))); }
-        function renderPlaylists() { let cont = document.getElementById('playlists-list'); cont.innerHTML = playlists.map(pl => `<div class="flex justify-between items-center p-3 rounded-xl hover:bg-white/5 cursor-pointer" onclick="loadPlaylist(${pl.id})"><div class="flex gap-3"><i class="fa-solid fa-list text-blue-400"></i><div><div class="font-medium">${escapeHtml(pl.name)}</div><div class="text-xs text-gray-500">${pl.trackIds.length} tracks</div></div></div><button class="bg-blue-600/80 text-xs px-3 py-1.5 rounded-full">Play</button></div>`).join(''); }
+        function renderPlaylists(filteredList = null) { let cont = document.getElementById('playlists-list'); let items = filteredList || playlists; cont.innerHTML = items.map(pl => ` <div class="flex justify-between items-center p-3 rounded-xl hover:bg-white/5 cursor-pointer" onclick="loadPlaylist(${pl.id})"> <div class="flex gap-3"> <i class="fa-solid fa-list text-blue-400"></i> <div> <div class="font-medium">${escapeHtml(pl.name)}</div> <div class="text-xs text-gray-500">${pl.trackIds.length} tracks</div> </div> </div> <button class="bg-blue-600/80 text-xs px-3 py-1.5 rounded-full">Play</button> </div> `).join(''); }
         function loadPlaylist(plId) { let pl = playlists.find(p=>p.id===plId); if(!pl) return; currentPlaylist = {...pl}; queue = [...pl.trackIds]; if(queue.length) { currentTrackIndex = 0; playTrack(queue[0]); } else toast("Empty playlist"); hidePlaylistsModal(); updateHeaderNowPlaying(); }
         
         function showCreatePlaylistModal() { document.getElementById('create-pl-modal').classList.remove('hidden'); document.getElementById('new-pl-name').value = ''; }
@@ -563,7 +591,12 @@
         function showNewTrackModal() { document.getElementById('new-track-modal').classList.remove('hidden'); document.getElementById('new-track-title').value=''; document.getElementById('new-track-artist').value=''; document.getElementById('new-track-url').value=''; }
         function closeNewTrackModal() { document.getElementById('new-track-modal').classList.add('hidden'); }
         function confirmAddNewTrack() { let title = document.getElementById('new-track-title').value.trim(); let artist = document.getElementById('new-track-artist').value.trim() || "Unknown"; let url = document.getElementById('new-track-url').value.trim(); if(!title || !url) { toast("Title & URL required", true); return; } let newTrack = { id: Date.now(), title, artist, url, duration: "0:00" }; tracks.unshift(newTrack); saveData(); closeNewTrackModal(); renderLibrary(); toast("Track added"); }
-        
+
+        function showClearStorageModal() { document.getElementById('clear-storage-modal').classList.remove('hidden'); }
+        function hideClearStorageModal() { document.getElementById('clear-storage-modal').classList.add('hidden'); }
+        function confirmClearStorageAction() { localStorage.clear(); hideClearStorageModal(); location.reload(); }
+        function confirmClearStorage() { showClearStorageModal(); }
+
         function showAddToPlaylistOptions(trackId) { let container = document.getElementById('playlist-options'); container.innerHTML = ''; let modal = document.getElementById('add-to-pl-modal'); modal.classList.remove('hidden'); if(playlists.length===0) { container.innerHTML = `<div class="p-5 text-center text-gray-400">No playlists yet</div>`; return; } playlists.forEach(pl => { let exists = pl.trackIds.includes(trackId); let btn = document.createElement('div'); btn.className = `p-3 flex justify-between items-center rounded-xl hover:bg-white/5 cursor-pointer ${exists ? 'opacity-50' : ''}`; btn.innerHTML = `<span><i class="fa-regular fa-rectangle-list mr-2"></i>${escapeHtml(pl.name)}</span> ${exists ? '<span class="text-green-400 text-xs">✓ added</span>' : '<span class="text-blue-400">+ Add</span>'}`; if(!exists) btn.onclick = () => { pl.trackIds.push(trackId); saveData(); hideAddToPlModal(); toast(`Added to ${pl.name}`); }; container.appendChild(btn); }); }
         function hideAddToPlModal() { document.getElementById('add-to-pl-modal').classList.add('hidden'); }
         
@@ -576,5 +609,6 @@
         window.onload = init;
         window.togglePlay=togglePlay; window.playNext=playNext; window.playPrevious=playPrevious; window.stopPlayback=stopPlayback; window.skipBackward=skipBackward; window.skipForward=skipForward; window.showLibraryModal=showLibraryModal; window.hideLibraryModal=hideLibraryModal; window.showPlaylistsModal=showPlaylistsModal; window.hidePlaylistsModal=hidePlaylistsModal; window.loadPlaylist=loadPlaylist; window.playTrack=playTrack; window.addCurrentToPlaylist=addCurrentToPlaylist; window.removeCurrentFromPlaylist=removeCurrentFromPlaylist; window.toggleShuffle=toggleShuffle; window.toggleRepeat=toggleRepeat; window.setVolume=setVolume; window.toggleMute=toggleMute; window.seek=seek; window.filterLibrary=filterLibrary; window.hideAddToPlModal=hideAddToPlModal; window.showCreatePlaylistModal=showCreatePlaylistModal; window.closeCreatePlaylistModal=closeCreatePlaylistModal; window.confirmCreatePlaylist=confirmCreatePlaylist; window.showNewTrackModal=showNewTrackModal; window.closeNewTrackModal=closeNewTrackModal; window.confirmAddNewTrack=confirmAddNewTrack; window.showAddToPlaylistOptions=showAddToPlaylistOptions;
     </script>
+
 </body>
 </html>
