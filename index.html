@@ -189,6 +189,9 @@
                     <button onclick="toggleRepeat()" id="repeat-btn" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 flex items-center justify-center" title="Repeat mode">
                         <i id="repeat-icon" class="fa-solid fa-repeat text-lg"></i>
                     </button>
+                    <button onclick="showLyricsModal()" class="btn-icon w-9 h-9 md:w-10 md:h-10 rounded-xl hover:bg-white/10 text-gray-300 flex items-center justify-center" title="Lyrics">
+                        <i class="fa-solid fa-quote-left text-lg"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -292,6 +295,25 @@
                     <button onclick="hideClearStorageModal()" class="flex-1 py-2.5 border border-zinc-700 rounded-xl">Cancel</button>
                     <button onclick="confirmClearStorageAction()" class="flex-1 bg-red-600 rounded-xl py-2.5 hover:bg-red-500">Clear</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lyrics-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="modal-pop bg-zinc-900 w-full max-w-md rounded-2xl overflow-hidden border border-white/10">
+            <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span id="lyr-dot" class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    <div>
+                        <div id="lyr-title" class="font-medium text-sm text-gray-200"></div>
+                        <div id="lyr-artist" class="text-xs text-gray-500"></div>
+                    </div>
+                </div>
+                <button onclick="hideLyricsModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="lyrics-body" class="p-5 max-h-96 overflow-y-auto text-sm leading-8 text-gray-300 whitespace-pre-line" dir="auto"></div>
+            <div class="px-5 py-3 border-t border-white/10 text-xs text-gray-600 text-center">
+                <i class="fa-solid fa-music mr-1"></i>Lyrics
             </div>
         </div>
     </div>
@@ -509,6 +531,56 @@
 		  { id: 1022, name: "Various", trackIds: [23, 38, 39, 40, 41, 42, 43, 44, 62, 63, 64, 65, 69, 79, 80, 81, 82, 88, 89, 93, 94, 95, 107, 111, 112, 113, 114, 143, 144, 145, 146, 147, 148, 156, 157, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181] }
 		];
 
+        const lyrics = {
+            114: {
+                lines: [
+                    "ای غم شیرینم با آدم و حوا",
+                    "ای بهشت فطرت بر دوزخ دنیا",
+                    "با تو پیمان بستیم در عهد خمینی",
+                    "أن تقوموا لله مثنی و فرادی",
+                    "",
+                    "باید برخاست دنیا با آنها و مولا با ماست",
+                    "این پیچ تاریخی طاقت فرساست",
+                    "باطل خواهد رفت و حق پابرجاست",
+                    "باید برخاست",
+                    "",
+                    "هر مصر فرعونی دریا دارد",
+                    "این قوم مستضعف موسی دارد",
+                    "شیعه در سختی‌ها رویا دارد",
+                    "رویا یعنی دوباره حسین",
+                    "",
+                    "می‌آید خورشیدی از تبار حسین",
+                    "کنار او می‌جنگیم کنار حسین",
+                    "زمین برمی‌گردد بر مدار حسین",
+                    "",
+                    "انا علی العهدی لبیک یا مهدی",
+                    "انا علی العهدی لبیک یا مهدی",
+                    "",
+                    "ای پناه مردم هنگام بلاها",
+                    "ای همه نیرویت از روضه زهرا",
+                    "با شما می‌مانیم تا آخر قله",
+                    "با شما می‌آییم تا مسجد الاقصی",
+                    "",
+                    "با این رهبر خیبر را له کردیم",
+                    "با یا حیدر یاران رفتند بی‌سر",
+                    "خونین پیکر",
+                    "ما می‌مانیم اما با همدیگر",
+                    "",
+                    "باید فهمید تا وقتی این ملت ایمان دارد",
+                    "کی تسلیم و تحمیل امکان دارد",
+                    "ایران رهبر رهبر ایران دارد",
+                    "",
+                    "ایران یعنی دیار علی",
+                    "نیام شمشیر ذوالفقار علی",
+                    "قرار یاران بی‌قرار علی",
+                    "به اینجا برمی‌گردد دوباره علی",
+                    "",
+                    "انا علی العهدی لبیک یا مهدی",
+                    "انا علی العهدی لبیک یا مهدی"
+                ]
+            }
+        };
+
         let currentTrackIndex = -1;
         let currentPlaylist = null;
         let queue = [];
@@ -582,7 +654,10 @@
         function setVolume(v) { currentVolume = parseFloat(v); player.volume = currentVolume; isMuted = currentVolume===0; updateVolumeIcon(); }
         function toggleMute() { isMuted = !isMuted; player.volume = isMuted ? 0 : currentVolume; updateVolumeIcon(); }
         function updateVolumeIcon() { let icon = document.getElementById('volume-icon'); if(player.volume===0) icon.className = "fa-solid fa-volume-xmark text-gray-400 hover:text-white cursor-pointer text-sm"; else if(player.volume<0.5) icon.className = "fa-solid fa-volume-low text-gray-400 hover:text-white cursor-pointer text-sm"; else icon.className = "fa-solid fa-volume-high text-gray-400 hover:text-white cursor-pointer text-sm"; }
-        
+
+        function showLyricsModal() { let trackId = queue[currentTrackIndex]; let track = tracks.find(t => t.id === trackId); if (!track) { toast("First, choose a song", true); return; } document.getElementById('lyr-title').innerText = track.title; document.getElementById('lyr-artist').innerText = track.artist || ''; let lyrData = lyrics[trackId]; let body = document.getElementById('lyrics-body'); if (lyrData && lyrData.lines && lyrData.lines.length) { body.innerHTML = lyrData.lines.map(line => line === '' ? '<br>' : `<div class="py-0.5">${escapeHtml(line)}</div>` ).join(''); body.dir = 'auto'; } else { body.innerHTML = '<div class="text-center text-gray-500 py-8">The lyrics of this song are not available</div>'; } document.getElementById('lyrics-modal').classList.remove('hidden'); document.getElementById('lyrics-modal').classList.add('flex'); }
+        function hideLyricsModal() { document.getElementById('lyrics-modal').classList.add('hidden'); document.getElementById('lyrics-modal').classList.remove('flex'); }
+
         function removeCurrentFromPlaylist() {
             if(!currentPlaylist) { toast("No active playlist", true); return; }
             let currentId = queue[currentTrackIndex];
